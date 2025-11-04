@@ -1,16 +1,18 @@
 import requests
 import time
+from datetime import datetime
 from config import Config
 from pathlib import Path
 
 
 class YandexMarketApi():
-    def __init__(self, timeout=300, wait_between=30):
+    def __init__(self, timeout=300, wait_between=30, data_directory='data'):
         self.__api_key = Config.API_KEY
         self.__business_id = Config.BUSINESS_ID
         self.__campaign_id = Config.CAMPAIGN_ID
         self.timeout = timeout
         self.wait_between = wait_between
+        self.data_directory = data_directory
         self.__base_url = 'https://api.partner.market.yandex.ru/v2'
         
         self.__session = requests.Session()
@@ -100,5 +102,33 @@ class YandexMarketApi():
                 return None
         print(f'Превышено время ожидания генерации отчета: {self.timeout} сек')
         return None
+
+    def download(self, file_url, report_type):
+        archive_path = Path(f'{self.data_directory}/raw/{report_type}')
+        archive_name = f'{report_type}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.zip'
+        target_file = archive_path / archive_name
+        try:
+            response = self.__session.get(file_url)
+            if response.status_code == 200:
+                archive_path.mkdir(parents=True, exist_ok=True)
+                with open(target_file, 'wb') as f:
+                    f.write(response.content)
+                if target_file.stat().st_size == 0:
+                    print("Файл пустой")
+                    target_file.unlink()
+                    return None
+            else:
+                print(f'Ошибка HTTP: {response.status_code}')
+                return None
+            print(f'Архив сохранен: {target_file}')
+            return target_file
+        except Exception as e:
+            print(f'Ошибка при скачивании отчета! {e}')
+            return None
+
+
+
+
+
 
 
