@@ -1,7 +1,11 @@
 from src.api.base_client import YandexMarketApi
 
-obj = YandexMarketApi()
-resp = obj.generate_sales_report('2025-10-10', '2025-10-10')
-print(resp)
+
+sales = YandexMarketApi()
+resp = sales.generate_sales_report('2025-10-10', '2025-10-10')
+report_id =  resp['result']['reportId']
+link = sales.wait_for_generation(report_id)
+print(link)
+
 
 

@@ -64,33 +64,41 @@ class YandexMarketApi():
 
 
     def wait_for_generation(self, report_id):
-        try:
-            data = self._make_request('GET',f'reports/info/{report_id}')
-            if not data:
-                print('Не удалось получить статус генерации отчета')
-                return None
-            result = data.get('result',{})
-            if result.get('status') == 'DONE':
-                if result.get('file'):
-                    return result.get('file')
+        start_time = time.time()
+        attempts = 0
+
+        while time.time() - start_time < self.timeout:
+            attempts += 1
+            try:
+                data = self._make_request('GET',f'reports/info/{report_id}')
+                if not data:
+                    print('Не удалось получить статус генерации отчета')
+                    time.sleep(self.wait_between)
+                    continue
+                result = data.get('result',{})
+                if result.get('status') == 'DONE':
+                    if result.get('file'):
+                        return result.get('file')
+                    else:
+                        print('Генерация завершена, но ссылки еще нет')
+                        return None
+                elif result.get('status') == 'FAILED':
+                    if result.get('subStatus'):
+                        print(f'Ошибка при генерации отчета {result.get('status')} {result.get("subStatus")}')
+                        return None
+                    else:
+                        print('Ошибка при генерации отчета')
+                        return None
+                elif result.get('status') == 'PENDING' or result.get('status') == 'PROCESSING':
+                    print('Отчет генерируется')
+                    time.sleep(self.wait_between)
                 else:
-                    print('Генерация завершена, но ссылки еще нет')
-                    return None
-            elif result.get('status') == 'FAILED':
-                if result.get('subStatus'):
-                    print(f'Ошибка при генерации отчета {result.get('status')} {result.get("subStatus")}')
-                    return None
-                else:
-                    print('Ошибка при генерации отчета')
-                    return None
-            elif result.get('status') == 'PENDING' or result.get('status') == 'PROCESSING':
-                print('Отчет генерируется')
+                    print('Неизвестный статус генерации отчета')
+                    time.sleep(self.wait_between)
+            except Exception as e:
+                print(f'HTTP Error: {e}')
                 return None
-            else:
-                print('Неизвестный статус генерации отчета')
-                return None
-        except Exception as e:
-            print(f'HTTP Error: {e}')
-            return None
+        print(f'Превышено время ожидания генерации отчета: {self.timeout} сек')
+        return None
 
 
