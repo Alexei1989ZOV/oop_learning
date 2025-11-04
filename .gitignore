@@ -68,3 +68,4 @@ oop/
 *.swo
 
 __pycache__/
+data/
