@@ -132,8 +132,11 @@ class YandexMarketApi():
         if archive_file:
             unzip_path = Path(f'{self.data_directory}/processed/{report_type}/current')
             unzip_path.mkdir(parents=True, exist_ok=True)
-            with ZipFile(archive_file) as zip:
-                zip.extractall(unzip_path)
+            for file in unzip_path.rglob('*'):
+                if file.is_file():
+                    file.unlink()
+            with ZipFile(archive_file) as z:
+                z.extractall(unzip_path)
                 print(f'Архив с отчетом {report_type} успешно распакован')
                 return True
         else:
