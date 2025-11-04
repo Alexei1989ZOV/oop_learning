@@ -1,13 +1,16 @@
 import requests
+import time
 from config import Config
 from pathlib import Path
 
 
 class YandexMarketApi():
-    def __init__(self):
+    def __init__(self, timeout=300, wait_between=30):
         self.__api_key = Config.API_KEY
         self.__business_id = Config.BUSINESS_ID
         self.__campaign_id = Config.CAMPAIGN_ID
+        self.timeout = timeout
+        self.wait_between = wait_between
         self.__base_url = 'https://api.partner.market.yandex.ru/v2'
         
         self.__session = requests.Session()
@@ -44,29 +47,50 @@ class YandexMarketApi():
             print(f'HTTP Error: {e}')
             return None
     
-    def generate_sales_report(self, dateFrom, dateTo, grouping="OFFERS"):
-        params = {
+    def generate_sales_report(self, dateFrom, dateTo, format='CSV', grouping='OFFERS'):
+        payload = {
             'businessId': self.__business_id,
             'dateFrom': dateFrom,
             'dateTo': dateTo,
             'grouping': grouping
         }
-        response = self._make_request("POST", "reports/shows-sales/generate", json=params)
+        params = {'format': format}
+
+        response = self._make_request("POST", "reports/shows-sales/generate",params=params, json=payload)
         if response:
             return response
         else:
             return None
 
 
-    def wait_for_generation(self, method, endpoint, report_id):
+    def wait_for_generation(self, report_id):
         try:
-            url = f'{self.__base_url}/{endpoint}/{report_id}'
-            response = self.__session.request(method, url)
-            if response.status_code != 200:
-                print(f'HTTP ошибка: {response.status_code}: {response.text}')
+            data = self._make_request('GET',f'reports/info/{report_id}')
+            if not data:
+                print('Не удалось получить статус генерации отчета')
                 return None
-            #TODO: логика ожидания генерации, проверки ошибок АПИ ЯМ
+            result = data.get('result',{})
+            if result.get('status') == 'DONE':
+                if result.get('file'):
+                    return result.get('file')
+                else:
+                    print('Генерация завершена, но ссылки еще нет')
+                    return None
+            elif result.get('status') == 'FAILED':
+                if result.get('subStatus'):
+                    print(f'Ошибка при генерации отчета {result.get('status')} {result.get("subStatus")}')
+                    return None
+                else:
+                    print('Ошибка при генерации отчета')
+                    return None
+            elif result.get('status') == 'PENDING' or result.get('status') == 'PROCESSING':
+                print('Отчет генерируется')
+                return None
+            else:
+                print('Неизвестный статус генерации отчета')
+                return None
         except Exception as e:
             print(f'HTTP Error: {e}')
+            return None
 
 
