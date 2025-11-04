@@ -1,5 +1,6 @@
 import requests
 import time
+from zipfile import ZipFile
 from datetime import datetime
 from config import Config
 from pathlib import Path
@@ -103,7 +104,7 @@ class YandexMarketApi():
         print(f'Превышено время ожидания генерации отчета: {self.timeout} сек')
         return None
 
-    def download(self, file_url, report_type):
+    def _download(self, file_url, report_type):
         archive_path = Path(f'{self.data_directory}/raw/{report_type}')
         archive_name = f'{report_type}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.zip'
         target_file = archive_path / archive_name
@@ -126,6 +127,18 @@ class YandexMarketApi():
             print(f'Ошибка при скачивании отчета! {e}')
             return None
 
+    def get_report(self,file_url, report_type):
+        archive_file = self._download(file_url, report_type)
+        if archive_file:
+            unzip_path = Path(f'{self.data_directory}/processed/{report_type}/current')
+            unzip_path.mkdir(parents=True, exist_ok=True)
+            with ZipFile(archive_file) as zip:
+                zip.extractall(unzip_path)
+                print(f'Архив с отчетом {report_type} успешно распакован')
+                return True
+        else:
+            print(f'Архив не загружен либо произошла ошибка')
+            return False
 
 
 
