@@ -4,6 +4,8 @@ from zipfile import ZipFile
 from datetime import datetime
 from config import Config
 from pathlib import Path
+from src.database.csv_parser import SalesReportCSVParser
+from src.database.session import create_tables
 
 
 class YandexMarketApi():
@@ -143,6 +145,43 @@ class YandexMarketApi():
             print(f'Архив не загружен либо произошла ошибка')
             return False
 
+    def process_csv_to_db(self, report_type='sales'):
+        """Обрабатывает распакованные CSV файлы и загружает в БД"""
+
+
+        # Создаем таблицы если их нет
+        create_tables()
+
+        # Находим CSV файлы в папке processed
+        unzip_path = Path(f'{self.data_directory}/processed/{report_type}/current')
+
+        if not unzip_path.exists():
+            print(f"❌ Папка с распакованными файлами не найдена: {unzip_path}")
+            return False
+
+        csv_files = list(unzip_path.glob('*.csv'))
+
+        if not csv_files:
+            print("❌ CSV файлы не найдены")
+            return False
+
+        # Загружаем каждый CSV в БД
+        total_loaded = 0
+        for csv_file in csv_files:
+            print(f"📁 Обрабатываем файл: {csv_file.name}")
+            try:
+                SalesReportCSVParser.save_to_database(csv_file)
+                total_loaded += 1
+            except Exception as e:
+                print(f"❌ Ошибка при обработке {csv_file.name}: {e}")
+                continue
+
+        if total_loaded > 0:
+            print(f"🎉 Успешно обработано {total_loaded} CSV файлов")
+            return True
+        else:
+            print("❌ Ни один файл не был обработан")
+            return False
 
 
 
